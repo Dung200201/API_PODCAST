@@ -2,7 +2,7 @@ import { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { handleErrorResponse } from "../../utils/handleError";
 import ExcelJS from "exceljs";
 
-export const downloadReportBlog20Request = async (
+export const downloadReportPodcastRequest = async (
   fastify: FastifyInstance,
   request: FastifyRequest<{ Params: { id: string } }>,
   reply: FastifyReply
@@ -11,14 +11,14 @@ export const downloadReportBlog20Request = async (
     const { id } = request.params;
 
     // 1️⃣ Lấy request từ DB
-    const blogRequest = await fastify.prisma.blog20Request.findUnique({
+    const podcastRequest = await fastify.prisma.podcastRequest.findUnique({
       where: { id },
     });
 
-    if (!blogRequest) {
+    if (!podcastRequest) {
       return reply.status(404).send({
         success: false,
-        message: "Blog20Request not found",
+        message: "PodcastRequest not found",
       });
     }
 
@@ -26,33 +26,38 @@ export const downloadReportBlog20Request = async (
     let data: any[] = [];
     let sheetName = "";
 
-    if (blogRequest.typeRequest === "register") {
-      if (!blogRequest.blogGroupId) {
+    if (podcastRequest.typeRequest === "register") {
+      if (!podcastRequest.podcastGroupId) {
         return reply.status(400).send({
           success: false,
-          message: "Request type 'register' must have blogGroupId",
+          message: "Request type 'register' must have podcastGroupId",
         });
       }
 
-      data = await fastify.prisma.blog20Account.findMany({
+      data = await fastify.prisma.podcastAccount.findMany({
         where: {
-          blogGroupId: blogRequest.blogGroupId,
+          podcastGroupId: podcastRequest.podcastGroupId,
           deletedAt: null,
+          status: "live"
         },
         orderBy: { createdAt: "asc" },
       });
 
-      sheetName = "Blog20 Accounts";
+      sheetName = "Podcast Accounts";
     } else {
-      data = await fastify.prisma.blog20Link.findMany({
+      data = await fastify.prisma.podcastLink.findMany({
         where: {
-          blogRequestId: blogRequest.id,
+          podcastRequestId: podcastRequest.id,
           deletedAt: null,
+          link_post: {
+            not: null,
+            notIn: ["", " "],
+          },
         },
         orderBy: { createdAt: "asc" },
       });
 
-      sheetName = "Blog20 Links";
+      sheetName = "Podcast Links";
     }
 
     // 3️⃣ Kiểm tra dữ liệu
@@ -68,15 +73,13 @@ export const downloadReportBlog20Request = async (
     const sheet = workbook.addWorksheet(sheetName);
 
     // 5️⃣ Đặt cột tương ứng với typeRequest
-    if (blogRequest.typeRequest === "register") {
+    if (podcastRequest.typeRequest === "register") {
       sheet.columns = [
         { header: "Website", key: "website", width: 25 },
         { header: "Username", key: "username", width: 20 },
         { header: "Email", key: "email", width: 25 },
         { header: "Password", key: "password", width: 20 },
         { header: "2FA", key: "twoFA", width: 20 },
-        { header: "Quick Link", key: "quickLink", width: 30 },
-        { header: "Home Link", key: "homeLink", width: 30 },
       ];
     } else {
       sheet.columns = [
@@ -107,7 +110,7 @@ export const downloadReportBlog20Request = async (
       )
       .header(
         "Content-Disposition",
-        `attachment; filename="report-${blogRequest.name}.xlsx"`
+        `attachment; filename="report-${podcastRequest.name}.xlsx"`
       )
       .send(buffer);
   } catch (error) {

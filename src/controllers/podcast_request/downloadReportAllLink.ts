@@ -10,15 +10,15 @@ export const downloadLinksFromRegisterRequest = async (
   try {
     const { id } = request.params;
 
-    // 1️⃣ Lấy thông tin Blog20Request hiện tại
-    const currentRequest = await fastify.prisma.blog20Request.findUnique({
+    // 1️⃣ Lấy thông tin PodcastRequest hiện tại
+    const currentRequest = await fastify.prisma.podcastRequest.findUnique({
       where: { id },
     });
 
     if (!currentRequest) {
       return reply.status(404).send({
         success: false,
-        message: "Blog20Request not found",
+        message: "podcastRequest not found",
       });
     }
 
@@ -30,17 +30,17 @@ export const downloadLinksFromRegisterRequest = async (
       });
     }
 
-    if (!currentRequest.blogGroupId) {
+    if (!currentRequest.podcastGroupId) {
       return reply.status(400).send({
         success: false,
-        message: "This request has no blogGroupId assigned",
+        message: "This request has no podcastGroupId assigned",
       });
     }
 
-    // 3️⃣ Lấy tất cả request 'post' cùng blogGroupId
-    const postRequests = await fastify.prisma.blog20Request.findMany({
+    // 3️⃣ Lấy tất cả request 'post' cùng podcastGroupId
+    const postRequests = await fastify.prisma.podcastRequest.findMany({
       where: {
-        blogGroupId: currentRequest.blogGroupId,
+        podcastGroupId: currentRequest.podcastGroupId,
         typeRequest: "post",
         deletedAt: null,
       },
@@ -57,14 +57,18 @@ export const downloadLinksFromRegisterRequest = async (
     const postRequestIds = postRequests.map((r) => r.id);
 
     // 4️⃣ Lấy tất cả link thuộc các request trên
-    const links = await fastify.prisma.blog20Link.findMany({
+    const links = await fastify.prisma.podcastLink.findMany({
       where: {
-        blogRequestId: { in: postRequestIds },
+        podcastRequestId: { in: postRequestIds },
         deletedAt: null,
+        link_post: {
+          not: null,
+          notIn: ["", " "],
+        },
       },
       orderBy: { createdAt: "asc" },
       include: {
-        blog20Request: { select: { name: true } },
+        podcastRequest: { select: { name: true } },
       },
     });
 
@@ -77,11 +81,10 @@ export const downloadLinksFromRegisterRequest = async (
 
     // 5️⃣ Tạo file Excel
     const workbook = new ExcelJS.Workbook();
-    const sheet = workbook.addWorksheet("Blog20 Links");
+    const sheet = workbook.addWorksheet("Podcast Links");
 
     // Cấu hình cột
     sheet.columns = [
-      { header: "Request Name", key: "requestName", width: 30 },
       { header: "Domain", key: "domain", width: 25 },
       { header: "Link Post", key: "link_post", width: 50 },
       // { header: "Status", key: "status", width: 15 },
@@ -98,7 +101,7 @@ export const downloadLinksFromRegisterRequest = async (
     // 6️⃣ Ghi dữ liệu
     links.forEach((link) => {
       sheet.addRow({
-        requestName: link.blog20Request.name,
+        requestName: link.podcastRequest.name,
         domain: link.domain,
         link_post: link.link_post,
         status: link.status,

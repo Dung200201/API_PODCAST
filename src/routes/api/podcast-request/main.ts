@@ -3,8 +3,10 @@ import { createPodcastRequestController } from "../../../controllers/podcast_req
 import { softDeletePodcastRequest, deletePodcastRequestById } from "../../../controllers/podcast_request/delete";
 import { getPodcastRequestById, getPodcastRequestDetailsById } from "../../../controllers/podcast_request/get";
 import { getAllPodcastRequest } from "../../../controllers/podcast_request/getall";
-import { updatePodcastRequest } from "../../../controllers/podcast_request/update"
-import { updatePodcastRequestStatus } from "../../../controllers/podcast_request/patch"
+import { updatePodcastRequest } from "../../../controllers/podcast_request/update";
+import { updatePodcastRequestStatus } from "../../../controllers/podcast_request/patch";
+import { downloadReportPodcastRequest } from "../../../controllers/podcast_request/downloadReport";
+import { downloadLinksFromRegisterRequest } from "../../../controllers/podcast_request/downloadReportAllLink"
 
 
 const PodcastRequestRoutes: FastifyPluginAsync = async (fastify, opts): Promise<void> => {
@@ -51,6 +53,14 @@ const PodcastRequestRoutes: FastifyPluginAsync = async (fastify, opts): Promise<
             await deletePodcastRequestById(fastify, req, reply);
         }
     );
+
+    fastify.get("/download-report/:id", async (req, reply) => {
+        await downloadReportPodcastRequest(fastify, req as any, reply);
+    });
+
+    fastify.get("/download-linkall/:id", async (req, reply) => {
+        await downloadLinksFromRegisterRequest(fastify, req as any, reply);
+    });
 };
 
 export default PodcastRequestRoutes;
