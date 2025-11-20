@@ -125,7 +125,7 @@ export const createPodcastRequestController = async (
       }
 
       // Verify email + App Password
-      const result = await verifyEmail(data.Email, data.AppPassword);
+      const result = await verifyEmail(data.email, data.appPassword);
       if (!result.success) {
         return reply.status(400).send({
           message: translations[dataLanguage].services.invalidAppPassword,
@@ -134,7 +134,7 @@ export const createPodcastRequestController = async (
       }
 
       // sanitize
-      data.Username = stripBackslash(data.Username);
+      data.Username = stripBackslash(data.username);
 
       // cần generate id podcast group
       finalPodcastGroupId = uuidv7();
@@ -159,9 +159,9 @@ export const createPodcastRequestController = async (
 
       if (!isAdmin) {
         const forbiddenCheck = [
-          { field: "about", value: data.About, words: forbiddenWordsAbout },
-          { field: "website", value: data.Website, words: forbiddenWordsAbout },
-          { field: "address", value: data.Address, words: forbiddenWordsAbout },
+          { field: "about", value: data.about, words: forbiddenWordsAbout },
+          { field: "website", value: data.website, words: forbiddenWordsAbout },
+          { field: "address", value: data.address, words: forbiddenWordsAbout },
         ];
 
         const forbiddenResult = checkForbiddenWords(forbiddenCheck);

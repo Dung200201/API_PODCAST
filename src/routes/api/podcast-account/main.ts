@@ -3,8 +3,7 @@ import { createPodcastAccount } from "../../../controllers/podcast_account/creat
 import { getPodcastAccountByRequestId } from "../../../controllers/podcast_account/get";
 import { getAllPodcastAccount } from "../../../controllers/podcast_account/getall";
 import { softDeletePodcastAccount } from "../../../controllers/podcast_account/delete"
-import { updateBlog20Account } from "../../../controllers/blog20_account/update";
-import { bulkUpdateBlog20Accounts } from "../../../controllers/blog20_account/update"
+import { updatePodcastAccount, bulkUpdatePodcastAccounts } from "../../../controllers/podcast_account/update"
 
 const PodcastAccountRoutes: FastifyPluginAsync = async (fastify, opts): Promise<void> => {
   // routes create 
@@ -27,15 +26,13 @@ const PodcastAccountRoutes: FastifyPluginAsync = async (fastify, opts): Promise<
   });
 
   fastify.put<{ Params: { id: string }; Body: any; }>("/update/:id", { preHandler: [fastify.authenticate] }, async (req, reply) => {
-    await updateBlog20Account(fastify, req, reply);
+    await updatePodcastAccount(fastify, req, reply);
   });
 
   // Update nhiều dòng
   fastify.put<{ Params: { id: string }; Body: any; }>("/update-many", { preHandler: [fastify.authenticate] }, async (req, reply) => {
-    await bulkUpdateBlog20Accounts(fastify, req, reply);
+    await bulkUpdatePodcastAccounts(fastify, req, reply);
   });
-
-
 
 };
 

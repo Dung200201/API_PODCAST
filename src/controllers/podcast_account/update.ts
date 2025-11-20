@@ -3,10 +3,10 @@ import { handleErrorResponse } from "../../utils/handleError";
 import { IUser } from "../../types/user";
 import { z } from "zod";
 
-const blog20AccountSchema = z.object({
+const podcastAccountSchema = z.object({
     website: z.string().optional(),
     username: z.string().optional(),
-    email: z.string().email().optional(),
+    email: z.string().email().optional(), 
     password: z.string().optional(),
     twoFA: z.string().optional(),
     quickLink: z.string().optional(),
@@ -16,8 +16,8 @@ const blog20AccountSchema = z.object({
     note: z.string().optional(),
 });
 
-// ===================== UPDATE 1 ACCOUNT =====================
-export const updateBlog20Account = async (
+//UPDATE 1 ACCOUNT
+export const updatePodcastAccount = async (
     fastify: FastifyInstance,
     request: FastifyRequest<{ Params: { id: string }; Body: any }>,
     reply: FastifyReply
@@ -32,14 +32,14 @@ export const updateBlog20Account = async (
         const isAdmin = role === "admin" || role === "dev";
 
         //Lấy dữ liệu hiện tại
-        const existingAccount = await fastify.prisma.blog20Account.findFirst({
+        const existingAccount = await fastify.prisma.podcastAccount.findFirst({
             where: !isAdmin
                 ? { id, deletedAt: null, id_tool: userId }
                 : { id, deletedAt: null },
         });
 
         if (!existingAccount) {
-            return reply.status(404).send({ success: false, message: "Blog20Account not found" });
+            return reply.status(404).send({ success: false, message: "PodcastAccount not found" });
         }
 
         // Check body rỗng
@@ -48,7 +48,7 @@ export const updateBlog20Account = async (
         }
 
         // Validate dữ liệu
-        const validation = blog20AccountSchema.safeParse(updateData);
+        const validation = podcastAccountSchema.safeParse(updateData);
         if (!validation.success) {
             const allErrors = validation.error.errors.map(e => e.message).join(", ");
             return reply.status(400).send({ success: false, message: allErrors });
@@ -62,15 +62,15 @@ export const updateBlog20Account = async (
         }
 
         // Thực hiện cập nhật
-        const updated = await fastify.prisma.blog20Account.update({
+        const updated = await fastify.prisma.podcastAccount.update({
             where: { id },
             data: { ...updateData, updatedAt: new Date() },
         });
 
         return reply.status(200).send({
             success: true,
-            message: "Blog20Account updated successfully",
-            blog20Account: updated,
+            message: "PodcastAccount updated successfully",
+            podcastAccount: updated,
         });
     } catch (error) {
         console.error(error);
@@ -78,12 +78,12 @@ export const updateBlog20Account = async (
     }
 };
 
-// ===================== BULK UPDATE =====================
-export const bulkUpdateBlog20Accounts = async (
+// BULK UPDATE 
+export const bulkUpdatePodcastAccounts = async (
     fastify: FastifyInstance,
     request: FastifyRequest<{ 
         Body: { 
-            blogGroupId: string; 
+            podcastGroupId: string; 
             status?: string; 
             id_tool?: string; 
             where_status?: string; 
@@ -93,7 +93,7 @@ export const bulkUpdateBlog20Accounts = async (
     reply: FastifyReply
 ) => {
     try {
-        const { blogGroupId, status, id_tool, where_status, where_id_tool } = request.body;
+        const { podcastGroupId, status, id_tool, where_status, where_id_tool } = request.body;
 
         if (!where_status && !where_id_tool) {
             return reply.status(400).send({
@@ -103,9 +103,9 @@ export const bulkUpdateBlog20Accounts = async (
         }
 
         // Lấy danh sách các bản ghi sẽ bị ảnh hưởng
-        const accounts = await fastify.prisma.blog20Account.findMany({
+        const accounts = await fastify.prisma.podcastAccount.findMany({
             where: {
-                blogGroupId,
+                podcastGroupId,
                 status: where_status || undefined,
                 id_tool: where_id_tool || undefined,
                 deletedAt: null,
@@ -116,14 +116,14 @@ export const bulkUpdateBlog20Accounts = async (
         if (!accounts || accounts.length === 0) {
             return reply.status(400).send({
                 success: false,
-                message: "No Blog20Account found to update",
+                message: "No PodcastAccount found to update",
             });
         }
 
         // Cập nhật hàng loạt
-        const updatedRecords = await fastify.prisma.blog20Account.updateMany({
+        const updatedRecords = await fastify.prisma.podcastAccount.updateMany({
             where: {
-                blogGroupId,
+                podcastGroupId,
                 status: where_status || undefined,
                 id_tool: where_id_tool || undefined,
                 deletedAt: null,

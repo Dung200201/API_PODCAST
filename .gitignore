@@ -67,4 +67,3 @@ dist
 .env
 google-api-key.json
 src/secret/
-*.json
