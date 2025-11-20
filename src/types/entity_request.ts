@@ -1,0 +1,28 @@
+export type IEntityRequest = {
+    id?: string | any;
+    userId?: string;
+    entity_email?: string;
+    app_password: string;
+    id_tool?: string;
+    auction_price: number;
+    entity_limit?: number;
+    username: string;
+    website: string;
+    fixed_sites?: string[];
+    account_type: "multiple" | "once";
+    spin_content: "always" | "once";
+    entity_connect: string;
+    social_connect?: string;
+    first_name: string;
+    last_name: string;
+    about: string;
+    address: string;
+    phone?: string;
+    location: string;
+    avatar: string;
+    cover: string;
+    status?: "draft" | "new" | "pending" | "running" | "connected" | "completed";
+    deletedAt?: Date | null;
+    createdAt?: Date;
+    updatedAt?: Date;
+};

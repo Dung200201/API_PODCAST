@@ -1,0 +1,1222 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                String         @id @default(uuid()) // Chuyển sang UUID
+  email             String         @unique @db.VarChar(255)
+  password          String         @db.VarChar(255)
+  status            userStatus     @default(active)
+  domains            Domain         @default(likepion)
+
+  expiresAt   DateTime?  
+  deletedAt         DateTime?
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
+  blog20groups      Blog20Group[]
+  blog20requests    Blog20Request[]
+  podcastgroups     PodcastGroup[]
+  podcastrequests   PodcastRequest[]
+  indexrequests     IndexRequest[] 
+  entityrequests    EntityRequest[] 
+  packages          Packages[]  
+  profile           Profile? 
+  userotp           UserOtp? 
+  transactions      Transaction[]
+  coupons           Coupon[]
+  deposits          Deposit[]
+  logs              UserLog[]
+  images            Images[]
+  tools             Tools[]
+  sites             Site[]
+  socialrequests    SocialRequest[]
+  socialgroups      SocialGroup[]
+  ggstackingrequests   GoogleStackingRequest[]
+  userActionLogs   UserActionLog[]  
+
+  @@index([email])
+  @@index([domains])
+  @@index([status])
+  @@index([createdAt])
+  @@map("user")
+}
+
+model Translation {
+  id        String   @id @default(uuid())
+  recordId   String   // ID của bản ghi gốc (tool id, category id...)
+  table  Table    
+  key       String  
+  language  LanguageGlobal    
+  value     Json    
+  domains            Domain         @default(likepion)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("translation")
+}
+
+model UserOtp {
+  id           String         @id @default(uuid()) // Chuyển sang UUID
+  userId       String         @unique @db.VarChar(155)
+  otp          String         @db.VarChar(255)
+  domains            Domain         @default(likepion)
+  createdAt    DateTime       @default(now())
+  expiresAt    DateTime 
+
+  user      User?     @relation(fields: [userId], references: [id], onDelete: Cascade) // Mối quan hệ 1-1 với bảng User
+
+  @@index([userId], map: "userotp_userId_fkey")
+  @@map("user_otp")
+}
+
+model Setting {
+  id        String       @id @default(uuid())
+  key       String
+  type      SettingType  
+  value     Json       
+  group     SettingGroup
+
+  domains            Domain         @default(likepion)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@map("setting")
+}
+
+model UserActionLog  {
+  id          String             @id @default(uuid())
+  userId      String            
+  action      String     // "update_profile", "delete_post"
+  resource    String?   // "Post", "Comment", "Setting"
+  resourceId  String?            // ID của đối tượng cụ thể
+  metadata    Json?              // Chi tiết thêm
+  ipAddress   String?     
+  userAgent   String?   
+  createdAt   DateTime           @default(now())
+
+  user        User               @relation(fields: [userId], references: [id])
+@@index([userId])
+  @@index([action])
+  @@index([createdAt])
+  @@map("user_action_log")
+}
+
+model Profile {
+  id           String         @id @default(uuid()) // Chuyển sang UUID
+  userId    String?      @unique
+  role      Role     @default(user)
+  type      Type     @default(normal)
+  language  Language @default(en)
+  username  String?  @unique
+  phone     String?
+  company   String?
+  isVN      Boolean   @default(true)
+  apiKey    String   @unique @db.VarChar(255)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user      User?     @relation(fields: [userId], references: [id], onDelete: Cascade) // Mối quan hệ 1-1 với bảng User
+
+  @@index([role]) 
+  @@index([type]) 
+  @@index([language]) 
+  @@index([userId], map: "profile_userId_fkey")
+  @@map("profile")  
+}
+
+model UserLog {
+  id           String         @id @default(uuid()) // Chuyển sang UUID
+  userId      String         
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  ipAddress   String
+  userAgent   String
+  domains            Domain         @default(likepion)
+  refreshToken String  @unique  // 🔹 Đảm bảo refresh token không bị trùng
+  location    String?  // Optional, có thể lấy từ API IP location
+  createdAt   DateTime @default(now())
+
+  // 🔹 Định nghĩa index đúng cách
+  @@index([userId]) // Index để truy vấn nhanh lịch sử đăng nhập của user
+  @@index([createdAt]) // Index để truy vấn log theo thời gian nhanh hơn
+
+  @@map("user_log") 
+}
+
+model Coupon {
+  id           String         @id @default(uuid()) // Chuyển sang UUID
+  userId         String?  
+  code           String        @unique
+  description    String? 
+  couponType     CouponType
+  couponValue    Int
+  maxRedemptions Int           @default(1)
+  redeemedCount  Int           @default(0)
+  isActive       Boolean       @default(true)
+  expiresAt      DateTime?
+  domains            Domain         @default(likepion)
+  deletedAt     DateTime?
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+  deposits       Deposit[]
+
+  user        User?        @relation(fields: [userId], references: [id], onDelete: SetNull)
+  @@index([userId], map: "coupon_userId_fkey")
+  @@map("coupon")
+}
+
+model Packages {
+  id           String         @id @default(uuid()) // Chuyển sang UUID
+  userId      String? 
+  type        PackageType
+  name        String      @db.VarChar(155)
+  slug        String?     @unique
+  description String?     @db.VarChar(255)
+  points      Int
+  price_vnd       Decimal     @db.Decimal(10, 0)  // Chỉ định 0 chữ số thập phân
+  price_usd       Decimal     @db.Decimal(10, 2)  // Chỉ định 0 chữ số thập phân
+  isActive    Boolean       @default(true)
+  durationDays Int?       @db.SmallInt
+
+  domains            Domain         @default(likepion)
+  deletedAt   DateTime?
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+user        User?        @relation(fields: [userId], references: [id], onDelete: SetNull)
+  deposits    Deposit[]
+
+  @@index([userId], map: "packages_userId_fkey")
+  @@map("packages")
+}
+
+model Credit {
+  id           String         @id @default(uuid()) // Chuyển sang UUID
+  name        String   @unique
+  description String?
+  status      Boolean       @default(true) 
+
+  domains            Domain         @default(likepion)
+  deletedAt   DateTime?     
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  deposits    Deposit[]
+
+  @@map("credit")
+}
+
+model Transaction {
+  id            String              @id @default(uuid()) // Chuyển sang UUID
+  userId        String  
+  depositId     String?            @unique // Kết nối với bảng Deposit (có thể nullable)
+  reference     String?           
+  type          TransactionType   
+  service       String              @db.VarChar(255)
+  description   String?             @db.VarChar(255)
+  points        Int
+  status        Boolean           @default(true)
+
+  domains       Domain         @default(likepion)
+  deletedAt     DateTime?
+
+  createdAt     DateTime           @default(now())
+
+  // Quan hệ với Deposit (có thể nullable nếu không có deposit)
+  deposit       Deposit?        @relation(fields: [depositId], references: [id])
+  
+  // Quan hệ
+  user          User               @relation(fields: [userId], references: [id])
+
+  @@index([type])
+  @@index([reference])
+  @@index([domains])
+  @@index([createdAt])
+  @@index([userId], map: "transaction_userId_fkey")
+  @@index([depositId], map: "transaction_depositId_fkey")
+  @@map("transaction")
+}
+
+// Bảng nạp điểm
+model Deposit {
+  id           String         @id @default(uuid()) // Chuyển sang UUID 
+  userId        String    
+  packageId     String?     
+  creditId      String?   
+  couponId      String?           
+
+  quantity      Int             
+  money_vnd      Decimal?     @db.Decimal(10, 0)              
+  currency      CurrencyType? 
+  status        DepositStatus   
+  pay_order_id  String?   
+  payer_id      String?         
+  order_code    String          @unique
+
+  // Lưu thông tin tĩnh bảng package
+  package_name  String?
+  package_price Decimal?         @db.Decimal(10, 2) 
+  package_points        Int?  
+
+  // Lưu thông tin tĩnh từ bảng Coupon (tránh mất dữ liệu khi Coupon bị xóa hoặc thay đổi)
+  coupon_code   String?  
+  coupon_value  Int?    
+  coupon_type   CouponType?     // Nếu `CouponType` là enum, cần định nghĩa đúng
+
+  domains            Domain         @default(likepion)
+  deletedAt     DateTime?
+
+  createdAt     DateTime        @default(now())   
+  updatedAt     DateTime        @updatedAt        
+
+  // Quan hệ với User
+  user          User            @relation(fields: [userId], references: [id])  
+  
+  // Quan hệ với Package
+  package       Packages?        @relation(fields: [packageId], references: [id])
+
+  // Quan hệ với Credit
+credit        Credit?          @relation(fields: [creditId], references: [id])
+
+  // Quan hệ với Coupon
+  coupon        Coupon?         @relation(fields: [couponId], references: [id])  // Quan hệ cũng phải cho phép nullable
+
+  // quan hệ với transaction
+  transaction   Transaction?
+
+  // Index
+  @@index([userId])  
+  @@index([status])  
+  @@index([couponId])  
+  @@index([packageId])  
+  @@index([creditId])  
+  @@map("deposit")   
+}
+
+// Bảng mails
+model Mails {
+  id                      String       @id @default(uuid()) // Chuyển sang UUID
+  messageId               String       @unique
+  statement               String?      @db.VarChar(500)  
+  amount                  Decimal      @db.Decimal(15,2)
+  status                  MailStatus   @default(new)
+  time_pay                DateTime     @default(now())   
+  domains            Domain         @default(likepion)
+  createdAt               DateTime     @default(now())   
+  updatedAt               DateTime     @updatedAt        
+  @@map("mails")   
+}
+
+model Gmail {
+  id                      String       @id @default(uuid()) 
+  email               String                    @db.VarChar(255)   @unique
+  password            String?                   @db.VarChar(155) 
+  app_password        String?                   @db.VarChar(255)
+  secret_key          String?                   @db.VarChar(255)
+  recovery_email      String?                      
+  owner               Int                       @db.SmallInt  @default(0)
+  status              GmailStatus               @default(success)
+
+  domain              Domain         @default(likepion)
+  deletedAt   DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([email])  
+  @@index([status])  
+  @@map("gmail")  
+}
+
+
+// Enum cho trạng thái giao dịch nạp tiền
+enum DepositStatus {
+  new        // Giao dịch đang chờ xử lý
+  pending       // Giao dịch đang chờ xử lý
+  completed     // Giao dịch đã thành công
+  failed        // Giao dịch thất bại
+  canceled      // Giao dịch bị hủy
+  expired      // Giao dịch bị hủy
+}
+
+// Enum trạng thái giao dịch
+enum OrderStatus {
+  pending      // Chờ thanh toán
+  success      // Thanh toán thành công
+  failed       // Thanh toán thất bại
+  refunded     // Đã hoàn tiền
+}
+
+enum TransactionType {
+  credit
+  debit
+}
+
+enum MailStatus {
+  new
+  done
+  expired
+}
+
+// Phần dịch vụ
+model IndexRequest {
+  id           String         @id @default(uuid()) // Chuyển sang UUID
+  userId      String
+  name        String?
+  auction_price   Int      @db.TinyInt @default(2)
+  status      IndexRequestStatus @default(new)
+
+  domains            Domain         @default(likepion)
+  deletedAt   DateTime?
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+  indexlink   IndexLink[]
+  user        User               @relation(fields: [userId], references: [id])
+
+  @@index([domains]) 
+  @@index([status])
+@@index([userId], map: "index_request_userId_fkey")
+  @@map("index_request")
+}
+
+model IndexLink {
+  id           String         @id @default(uuid()) // Chuyển sang UUID
+  indexRequestId    String
+  source       IndexLinkSource @default(web)      // hiển thị là sử dung web hay api
+  url          String           // url của họ bên bảng index request
+  response     Int?             // Trạng thái link ví dụ 404
+  information  String?        // tHÔNG TIN thêm cho người dùng về url
+  push         Int             @default(0)          // đẩy chỉ mục 1-3 lần
+  status       IndexLinkStatus @default(new)
+  indexed      Boolean         @default(false)
+
+  domains            Domain         @default(likepion)
+  deletedAt   DateTime?
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+  indexRequest IndexRequest @relation(fields: [indexRequestId], references: [id], onDelete: Cascade)
+
+  @@index([source]) 
+  @@index([response]) 
+  @@index([push]) 
+  @@index([status]) 
+  @@index([indexed]) 
+  @@index([domains]) 
+  @@index([indexRequestId], map: "index_link_indexRequestId_fkey")
+  @@map("index_link")
+}
+
+model EntityRequest {
+  id              String         @id @default(uuid())
+  userId          String
+  entity_email    String   @db.VarChar(125)
+  app_password    String   @db.VarChar(55)
+  id_tool         String?  @db.VarChar(55)                  @default("")
+  auction_price   Int      @db.TinyInt
+  entity_limit    Int      @db.SmallInt 
+  username        String   @db.VarChar(55)
+  website         String   @db.VarChar(500)
+  fixed_sites     String?  @db.Text                @default("") 
+  account_type    EntityRequestAccountType   @default(multiple)
+  spin_content    EntityRequestSpinContent   @default(always)
+  entity_connect  String   @default("disable") @db.Text
+  social_connect  String?   @db.VarChar(1000)               @default("")
+  first_name      String   @db.VarChar(25)
+  last_name       String   @db.VarChar(25)
+  about String    @db.Text
+  address         String   @db.VarChar(200)
+  phone           String   @db.VarChar(20)
+  location        String   @db.VarChar(100)
+  status          EntityRequestStatus   @default(draft)
+  run_count       Int     @db.TinyInt   @default(0)
+  data            Json?
+
+  is_delete      Boolean     @default(false)     
+  domains            Domain         @default(likepion)  
+  deletedAt    DateTime?       
+  createdAt    DateTime        @default(now())
+  checkedAt    DateTime        @updatedAt
+  updatedAt    DateTime        @updatedAt
+
+  entityLinks   EntityLink[]
+  user        User               @relation(fields: [userId], references: [id])
+
+  // index
+  @@index([userId], map: "entity_request_userId_fkey")
+  @@index([domains]) 
+  @@index([status]) 
+  @@map("entity_request") // Đảm bảo bảng có tên chính xác trong database
+}
+
+model EntityLink {
+  id            String        @id @default(uuid())
+  entityRequestId    String
+id_tool       String   @db.VarChar(50)  
+  email         String   @db.VarChar(125)  
+  username      String   @db.VarChar(125)  
+  password      String   @db.VarChar(125)  
+  about         String    @db.Text
+  site          String   @db.VarChar(125) 
+  link_profile  String   @db.VarChar(255)   
+  link_post     String?  @db.VarChar(255) // Có thể NULL
+  status        String   @default("new")
+  type          String?   @default("normal")
+  note          String?  @db.VarChar(255) // Có thể NULL   @default("")
+  index        Boolean         @default(false)
+  domains            Domain         @default(likepion)
+  deletedAt     DateTime?
+  createdAt     DateTime @default(now())  
+  updatedAt     DateTime @updatedAt  
+  entityRequest     EntityRequest @relation(fields: [entityRequestId], references: [id], onDelete: Cascade) // Thêm quan hệ ngược
+
+  // index
+  @@index([id_tool]) 
+  @@index([status]) 
+  @@index([note]) 
+  @@index([entityRequestId]) 
+  @@index([entityRequestId], map: "entity_link_entityRequestId_fkey")
+  @@map("entity_link") // Tên bảng trong DB
+}
+
+model SocialLink {
+  id                  String                @id @default(uuid()) @db.VarChar(155)
+  socialRequestId     String                @db.VarChar(155)
+  id_tool             String?                @db.VarChar(155)
+  dataSocialAccount                String               @db.MediumText
+  domain              String               @db.VarChar(155)
+  link_post           String?                @db.VarChar(255)
+  status              SocialLinkStatus      @default(new) 
+  google_login         Boolean               @default(false) 
+  note                String?               
+  index        Boolean         @default(false)
+  domains            Domain         @default(likepion)
+  deletedAt     DateTime?
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+
+  socialRequest     SocialRequest @relation(fields: [socialRequestId], references: [id], onDelete: Cascade) // Thêm quan hệ ngược
+
+  // index
+  @@index([socialRequestId], map: "social_link_socialRequestId_fkey")
+  @@map("social_link") // Tên bảng trong DB
+}
+
+model SocialRequest {
+  id                    String                @id @default(uuid())  @db.VarChar(155)
+  userId                String                @db.VarChar(155)
+  socialGroupId           String?                @db.VarChar(155)
+  id_tool                String?                @db.VarChar(155)
+  data                String?               @db.LongText
+  name                String                @db.VarChar(155)
+  auction_price       Int      @default(20)              @db.TinyInt  
+  status                SocialStatus          @default(new)
+
+  domains            Domain         @default(likepion)
+  deletedAt     DateTime?
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+
+  social_links   SocialLink[]
+  user        User               @relation(fields: [userId], references: [id])
+socialgroup           SocialGroup?           @relation(fields: [socialGroupId], references: [id], onDelete: SetNull)
+
+  // index
+  @@index([socialGroupId], map: "social_request_socialGroupId_fkey")
+  @@index([userId], map: "social_request_userId_fkey")
+  @@index([status]) 
+  @@map("social_request") // Đảm bảo bảng có tên chính xác trong database
+}
+
+model SocialGroup {
+  id                    String   @id @default(uuid()) @db.VarChar(155)
+  userId                String   @db.VarChar(155)
+  id_tool               String?   @db.VarChar(55)                  
+  name                  String   @db.VarChar(55)
+  gmail                 String?   @db.VarChar(155)
+  pass_mail             String?   @db.VarChar(155)
+  twoFA                 String?   @db.VarChar(155)
+  recovery_mail         String?   @db.VarChar(155)
+  status                SocialGroupStatus  @default(new)
+
+  domains            Domain         @default(likepion)
+  deletedAt             DateTime?
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+  social_accounts        SocialAccount[]
+  social_requests        SocialRequest[]
+
+  user        User     @relation(fields: [userId], references: [id])
+
+  // index
+  @@index([userId], map: "social_group_userId_fkey")
+  @@index([status])
+  @@map("social_group")
+}
+
+model SocialAccount {
+  id                    String                @id @default(uuid())  @db.VarChar(155)
+  socialGroupId         String                @db.VarChar(155)
+  id_tool               String?                @db.VarChar(55)
+  website               String                @db.VarChar(155)
+  username              String?                @db.VarChar(55)   
+  email                 String?                @db.VarChar(155)
+  password              String?               @db.VarChar(255)  
+  twoFA                     String?               @db.VarChar(155)
+  cookies               String?               @db.MediumText 
+  active                Boolean               @default(true)
+  status                SocialAccountStatus   @default(uncheck) 
+  note                  String?               @db.VarChar(255)   
+
+  domains            Domain         @default(likepion)
+  deletedAt             DateTime?
+  createdAt             DateTime              @default(now())
+  updatedAt             DateTime              @updatedAt
+
+
+  social_group           SocialGroup           @relation(fields: [socialGroupId], references: [id], onDelete: Cascade)
+
+  // index
+  @@index([socialGroupId], map: "social_group_socialGroupId_fkey")
+  @@index([status]) 
+  @@map("social_account") // Đảm bảo bảng có tên chính xác trong database
+}
+
+model GoogleStackingRequest {
+  id                    String   @id @default(uuid()) @db.VarChar(155)
+  userId                String   @db.VarChar(155)
+  id_tool               String  @db.VarChar(55)                  @default("")
+  auction_price         Int      @db.TinyInt
+  folder_url              String?     @db.VarChar(155)
+title                  String   @db.VarChar(500)
+  website                  String   @db.VarChar(255)
+  about                  String   @db.Text
+  phone                 String   @db.VarChar(20)
+  address                 String   @db.VarChar(200)
+  location                    String   @db.VarChar(100)
+  stacking_connect              String?   @db.Text               @default("")
+  spin_content                  EntityRequestSpinContent   @default(always)
+  duplicate                  Int   @default(0)
+  status          GgStackingRequestStatus   @default(draft)  
+
+  domains            Domain         @default(likepion)
+  deletedAt     DateTime?
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+
+  ggStackingLinks       GoogleStackingLink[]
+  user        User     @relation(fields: [userId], references: [id])
+
+  // index
+  @@index([userId], map: "gg_stacking_request_userId_fkey")
+  @@index([status]) 
+  @@map("google_stacking_request")
+}
+
+model GoogleStackingLink {
+  id            String        @id @default(uuid())
+  ggStackingRequestId    String    
+  id_tool       String   @db.VarChar(50)   @default("")
+  about         String   @db.Text
+  site          String   @db.VarChar(125) 
+  link_post     String  @db.VarChar(255)  @default("")
+  status        String   @default("new")
+  note          String  @db.VarChar(3000) // Có thể NULL   @default("")
+  index         Boolean         @default(false)
+  domains            Domain         @default(likepion)
+  deletedAt     DateTime?
+  createdAt     DateTime @default(now())  
+  updatedAt     DateTime @updatedAt  
+  ggStackingRequest     GoogleStackingRequest @relation(fields: [ggStackingRequestId], references: [id], onDelete: Cascade) // Thêm quan hệ ngược
+
+  // index
+  @@index([ggStackingRequestId], map: "gg_stacking_link_ggStackingRequestId_fkey")
+  @@map("google_stacking_link") // Tên bảng trong DB
+}
+
+// All Tables Blog2.0
+model Blog20Request {
+  id            String          @id @default(uuid()) @db.VarChar(155)
+  userId        String          @db.VarChar(155)
+  blogGroupId   String?         @db.VarChar(155)
+  id_tool       String?         @db.VarChar(155)
+  typeRequest   typeBlogRequest @default(post)
+  target        Int?            @default(0) @db.SmallInt
+  data          String?         @db.LongText
+  name          String          @db.VarChar(155)
+  auction_price Int             @default(20) @db.TinyInt
+  status        BlogStatus      @default(draft)
+  deletedAt     DateTime?
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+  blog20_link   Blog20Link[]
+  blog20group   Blog20Group?    @relation(fields: [blogGroupId], references: [id])
+  user          User            @relation(fields: [userId], references: [id])
+
+  @@index([blogGroupId], map: "blog20_request_blogGroupId_fkey")
+  @@index([userId], map: "blog20_request_userId_fkey")
+  @@index([status])
+  @@map("blog20_request")
+}
+
+model Blog20Link {
+  id            String        @id @default(uuid()) @db.VarChar(155)
+  blogRequestId String        @db.VarChar(155)
+  id_tool       String?       @db.VarChar(155)
+  domain        String        @db.VarChar(155)
+  link_post     String?       @db.VarChar(255)
+  status        String        @default("new")
+  note          String?
+  deletedAt     DateTime?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  blog20Request Blog20Request @relation(fields: [blogRequestId], references: [id], onDelete: Cascade)
+
+  @@index([blogRequestId], map: "blog20_link_blogRequestId_fkey")
+  @@map("blog20_link")
+}
+
+model Blog20Group {
+  id             String          @id @default(uuid()) @db.VarChar(155)
+  userId         String          @db.VarChar(155)
+  name           String          @db.VarChar(55)
+  status         BlogGroupStatus @default(new)
+  deletedAt      DateTime?
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  blog20_account Blog20Account[]
+  user           User            @relation(fields: [userId], references: [id])
+  blog20_request Blog20Request[]
+
+  @@index([userId], map: "blog20_group_userId_fkey")
+  @@index([status])
+  @@map("blog20_group")
+}
+
+model Blog20Account {
+  id           String      @id @default(uuid()) @db.VarChar(155)
+  blogGroupId  String      @db.VarChar(155)
+  id_tool      String?     @db.VarChar(55)
+  website      String      @db.VarChar(155)
+  username     String?     @db.VarChar(55)
+  email        String?     @db.VarChar(155)
+  pass_mail    String?     @db.VarChar(255)
+  twoFA        String?     @db.VarChar(155)
+  password     String?     @db.VarChar(255)
+  quickLink    String?     @db.VarChar(255)
+  homeLink     String?     @db.VarChar(255)
+  cookies      String?     @db.MediumText
+  status       String      @default("new")
+  note         String?     @db.VarChar(255)
+  deletedAt    DateTime?
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+  app_password String?     @db.VarChar(255)
+  blog20_group Blog20Group @relation(fields: [blogGroupId], references: [id], onDelete: Cascade)
+
+  @@index([blogGroupId], map: "blog20_account_blogGroupId_fkey")
+  @@index([status])
+  @@map("blog20_account")
+}
+enum typeBlogRequest {
+  register
+  post
+}
+
+enum BlogStatus {
+  draft
+  new
+  pending
+  running
+  completed
+  cancel
+}
+
+enum BlogGroupStatus {
+  new
+  running
+  completed
+  failed
+  cancel
+}
+
+// Các bảng Podcast
+model PodcastRequest {
+  id            String          @id @default(uuid()) @db.VarChar(155)
+  userId        String          @db.VarChar(155)
+  podcastGroupId   String?         @db.VarChar(155)
+  id_tool       String?         @db.VarChar(155)
+  typeRequest   typePodcastRequest @default(post)
+  target        Int?            @default(0) @db.SmallInt
+  data          String?         @db.LongText
+  name          String          @db.VarChar(155)
+  auction_price Int             @default(20) @db.TinyInt
+  status        PodcastStatus      @default(draft)
+  deletedAt     DateTime?
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+  podcast_link   PodcastLink[]
+  podcastgroup  PodcastGroup?    @relation(fields: [podcastGroupId], references: [id])
+  user          User            @relation(fields: [userId], references: [id])
+
+  @@index([podcastGroupId], map: "podcast_request_podcastGroupId_fkey")
+  @@index([userId], map: "podcast_request_userId_fkey")
+  @@index([status])
+  @@map("podcast_request")
+}
+
+enum typePodcastRequest {
+  register
+  post
+}
+
+enum PodcastStatus {
+  draft
+  new
+  pending
+  running
+  completed
+  cancel
+}
+
+model PodcastLink {
+  id            String        @id @default(uuid()) @db.VarChar(155)
+  podcastRequestId String        @db.VarChar(155)
+  id_tool       String?       @db.VarChar(155)
+  domain        String        @db.VarChar(155)
+  link_post     String?       @db.VarChar(255)
+  status        String        @default("new")
+  note          String?
+  deletedAt     DateTime?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  podcastRequest PodcastRequest @relation(fields: [podcastRequestId], references: [id], onDelete: Cascade)
+
+  @@index([podcastRequestId], map: "podcast_link_podcastRequestId_fkey")
+  @@map("podcast_link")
+}
+
+model PodcastGroup {
+  id             String          @id @default(uuid()) @db.VarChar(155)
+  userId         String          @db.VarChar(155)
+  name           String          @db.VarChar(55)
+  link_rss       String          @db.VarChar(155)
+  status         PodcastGroupStatus @default(new)
+  deletedAt      DateTime?
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  podcast_account PodcastAccount[]
+  user           User            @relation(fields: [userId], references: [id])
+  podcast_request PodcastRequest[]
+
+  @@index([userId], map: "podcast_group_userId_fkey")
+  @@index([status])
+  @@map("podcast_group")
+}
+
+enum PodcastGroupStatus {
+  new
+  running
+  completed
+  failed
+  cancel
+}
+
+model PodcastAccount {
+  id           String      @id @default(uuid()) @db.VarChar(155)
+  podcastGroupId  String      @db.VarChar(155)
+  id_tool      String?     @db.VarChar(55)
+  website      String      @db.VarChar(155)
+  username     String?     @db.VarChar(55)
+  email        String?     @db.VarChar(155)
+  pass_mail    String?     @db.VarChar(255)
+  twoFA        String?     @db.VarChar(155)
+  password     String?     @db.VarChar(255)
+  cookies      String?     @db.MediumText
+  status       String      @default("new")
+  note         String?     @db.VarChar(255)
+  deletedAt    DateTime?
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+  app_password String?     @db.VarChar(255)
+  podcast_group PodcastGroup @relation(fields: [podcastGroupId], references: [id], onDelete: Cascade)
+
+  @@index([podcastGroupId], map: "podcast_account_podcastGroupId_fkey")
+  @@index([status])
+  @@map("podcast_account")
+}
+
+// Site
+model Site {
+  id                    String   @id @default(uuid()) @db.VarChar(155)
+  userId                String   @db.VarChar(155)
+  domain                String  @unique    @db.VarChar(155)
+  type                  SiteType   @default(entity)
+  group                 SiteGroup  @default(normal)
+  traffic               Int?      @db.UnsignedSmallInt @default(0)
+  DA                    Int?      @db.UnsignedSmallInt @default(0)
+  status                SiteStatus  @default(new)
+  note                  String?   @db.VarChar(255)
+
+  deletedAt             DateTime?
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+  user                  User           @relation(fields: [userId], references: [id])
+
+  @@index([type])
+  @@index([userId])
+  @@index([status])
+  @@map("site")
+}
+
+model Images {
+  id            String   @id @default(uuid())  
+  userId        String
+  imageableId   String?   // ID của bảng liên kết (EntityRequest, User, v.v.)
+  imageableType ImageableType?  
+  
+  url           String
+publicId      String   @unique                                        
+  type          ImageType?
+
+  domains            Domain         @default(likepion)
+  deletedAt     DateTime?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  user        User               @relation(fields: [userId], references: [id])
+
+  // Không cần quan hệ trực tiếp, chỉ dùng ID + Type
+  @@index([imageableId, imageableType])
+  @@index([userId, type])
+
+  @@map("images") 
+}
+
+model Tools {
+  id            String   @id @default(uuid())  
+  userId        String     
+  id_tool       String    @unique @db.VarChar(50)
+  thread_number Int
+  type          ToolType        @default(individual)                          
+  time          String    @db.VarChar(50)
+  status        ToolStatus
+  service       ToolService      @default(entity)      
+  estimate_time       String?      @default("10")  @db.VarChar(50)   
+  customer_type     String?       @db.VarChar(50)
+  user        User               @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([id_tool])
+  @@index([time])
+  @@map("tools") 
+}
+
+model EntityCaptcha {
+  id           String         @id @default(uuid()) // Chuyển sang UUID
+  provider CaptchaProvider @default(captcha2)
+  api      String          @unique
+  balance  Float
+
+  deletedAt   DateTime?
+  createAt DateTime        @default(now())
+  updateAt DateTime        @updatedAt
+  status   CaptchaStatus   @default(die)
+
+  @@map("entity_captcha")
+}
+
+// Enum
+enum userStatus {
+  active
+  banned
+  pending
+}
+
+// ENUM Backlink Profile
+enum EntityRequestEntityType {
+  entity
+}
+
+enum EntityRequestAccountType {
+  multiple
+  once
+}
+
+enum EntityRequestSpinContent {
+  always
+  once
+}
+
+enum EntityRequestStatus {
+  draft
+  new
+  pending
+  running
+  connecting
+  completed
+  cancel
+  re_running
+  run_more
+}
+
+enum GgStackingRequestStatus {
+  draft
+  new
+  running
+  connecting
+  completed
+  cancel
+}
+
+enum Role {
+  user
+  support
+  dev
+  admin
+}
+
+enum Type {
+  normal
+  advanced
+  priority
+}
+
+enum Language {
+  en
+  auto
+}
+
+enum CurrencyType {
+  vnd
+  usd
+  eur
+}
+
+enum CouponType {
+  increase
+  discount
+  reward
+}
+
+enum PackageType {
+  mini
+  small
+  huge
+  mega
+}
+
+enum IndexRequestStatus {
+  new
+  pending
+  running
+  completed
+}
+
+enum IndexLinkSource {
+  web
+  api 
+}
+
+enum ToolType {
+  individual
+  global
+  cancel
+  re_running
+  run_more
+  premium
+}
+
+enum ToolStatus {
+  die
+  running
+}
+
+enum IndexLinkStatus {
+  new
+  pending
+  indexing
+  done
+  cancel
+  failed
+}
+
+enum CaptchaProvider {
+  captcha2
+}
+
+enum CaptchaStatus {
+  full
+  medium
+  low
+  die
+}
+
+// Xác định bảng nào có thể sử dụng ảnh này
+enum ImageableType {
+  setting
+  profile
+  blog20
+  podcast
+  entity
+  googleStacking
+}
+
+// Kiểu ảnh
+enum ImageType {
+  avatar
+  cover
+  banner
+  gallery
+  other
+  logo_dark
+  logo_light
+  favicon
+}
+
+enum SocialStatus {
+  new
+  pending
+  running
+  completed
+  cancel
+}
+
+enum SocialLanguage {
+  en
+  vi
+}
+
+enum SocialAccountStatus {
+  uncheck
+checking
+  live
+  limit
+  error
+}
+
+enum SiteStatus {
+  new
+  completed
+  running
+  testing
+  working
+  deleted
+}
+
+enum SiteType {
+  entity
+  social
+  entity_accountSocial
+  social_accountSocial
+  accountSocial
+  googleStacking
+}
+
+enum SocialLinkStatus {
+  new
+  running
+  completed
+  failed
+  die
+  cancel
+}
+// Bảng tool
+enum ToolService {
+  entity
+  social
+  index
+  google_stacking
+  blog
+}
+enum SettingGroup {
+  telegram
+  mail
+  serper
+  bank
+  payment
+}
+
+enum SettingType {
+  string
+  number
+  json
+  encrypted
+  boolean
+}
+
+// bảng social group
+enum SocialGroupStatus {
+  new
+  pending
+  running
+  completed
+  cancel
+  failed
+}
+
+enum GmailStatus {
+  success
+  failed
+}
+
+// Định nghĩa các loại Entity có thể có
+enum UserActionTable {
+  user
+  entity_request
+  entity_link
+  social_request
+  social_link
+  social_group
+  social_account
+  index_request
+  google_stacking_request
+  google_stacking_link
+  coupon
+  gmail
+  images
+  index_link
+  mails
+  packages
+  site
+  deposit
+  transaction
+}
+
+enum Table {
+  user
+  entity_request
+  entity_link
+  social_request
+  social_link
+  social_group
+  social_account
+  index_request
+  google_stacking_request
+  google_stacking_link
+  coupon
+  gmail
+  images
+  index_link
+  mails
+  packages
+  site
+  deposit
+  transaction
+}
+
+enum LanguageGlobal {
+  vi
+  en
+}
+
+enum SiteGroup {
+  normal
+  captcha 
+}
+
+enum Domain {
+  likepion
+  linkbox 
+  all
+}
