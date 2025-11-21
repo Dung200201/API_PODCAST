@@ -4,6 +4,7 @@ import { softDeletePodcastRequest, deletePodcastRequestById } from "../../../con
 import { getPodcastRequestById, getPodcastRequestDetailsById } from "../../../controllers/podcast_request/get";
 import { getAllPodcastRequest } from "../../../controllers/podcast_request/getall";
 import { updatePodcastRequest } from "../../../controllers/podcast_request/update";
+import { updateRegisterAndPost } from "../../../controllers/podcast_request/updateRegisterAndPost"
 import { updatePodcastRequestStatus } from "../../../controllers/podcast_request/patch";
 import { downloadReportPodcastRequest } from "../../../controllers/podcast_request/downloadReport";
 import { downloadLinksFromRegisterRequest } from "../../../controllers/podcast_request/downloadReportAllLink"
@@ -34,6 +35,11 @@ const PodcastRequestRoutes: FastifyPluginAsync = async (fastify, opts): Promise<
     fastify.put("/update/:id", { preHandler: [fastify.authenticate], }, async (req, reply) => {
         return updatePodcastRequest(fastify, req as any, reply);
     });
+
+    fastify.put("/update-register-post", { preHandler: [fastify.authenticate], }, async (req, reply) => {
+        return updateRegisterAndPost(fastify, req as any, reply);
+    });
+
 
     // Update Request qua trạng thái New check qua các điều kiện điểm và quyền user
     fastify.patch<{ Body: any; }>("/update-status/:id", { preHandler: [fastify.authenticate] }, async (req, reply) => {

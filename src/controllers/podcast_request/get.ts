@@ -58,6 +58,7 @@ export const getPodcastRequestById = async (
     //     orderBy: { createdAt: "desc" },
     //   }),
     // ]);
+
     return reply.status(200).send({
       message: "Podcast details fetched successfully.",
       success: true,
@@ -124,6 +125,29 @@ export const getPodcastRequestDetailsById = async (
     //     orderBy: { createdAt: "desc" },
     //   }),
     // ]);
+
+    let relatedPostRequests: any[] = [];
+    if (podcastRes.podcastGroupId) {
+      relatedPostRequests = await fastify.prisma.podcastRequest.findMany({
+        where: {
+          podcastGroupId: podcastRes.podcastGroupId,
+          typeRequest: "post",
+          id: { not: podcastRes.id },
+          deletedAt: null,
+        },
+        select: {
+          id: true,
+          name: true,
+          typeRequest: true,
+          data: true,
+          status: true,
+          createdAt: true,
+          updatedAt: true,
+          target: true,
+        },
+        orderBy: { createdAt: "desc" },
+      });
+    }
 
     // ✅ Lấy danh sách phụ thuộc vào typeRequest
     let accounts: any[] = [];
@@ -193,6 +217,7 @@ export const getPodcastRequestDetailsById = async (
         ratio,
         accounts,
         links,
+        relatedPostRequests,
       },
     });
   } catch (error) {
