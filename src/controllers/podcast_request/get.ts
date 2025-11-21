@@ -40,7 +40,7 @@ export const getPodcastRequestById = async (
 
     if (!podcastRes) {
       return reply.status(404).send({
-        message: "Blog request not found with the provided ID.",
+        message: "Podcast request not found with the provided ID.",
         success: false,
       });
     }
@@ -61,7 +61,7 @@ export const getPodcastRequestById = async (
     return reply.status(200).send({
       message: "Podcast details fetched successfully.",
       success: true,
-      blog: {
+      podcast: {
         ...podcastRes,
         //avatar,
       },
@@ -106,7 +106,7 @@ export const getPodcastRequestDetailsById = async (
 
     if (!podcastRes) {
       return reply.status(404).send({
-        message: "Blog request not found with the provided ID.",
+        message: "Podcast request not found with the provided ID.",
         success: false,
       });
     }
@@ -184,9 +184,9 @@ export const getPodcastRequestDetailsById = async (
 
 
     return reply.status(200).send({
-      message: "Blog20Request details fetched successfully.",
+      message: "PodcastRequest details fetched successfully.",
       success: true,
-      blog: {
+      podcast: {
         ...podcastRes,
         // avatar,
         total,
