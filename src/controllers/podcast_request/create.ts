@@ -84,6 +84,7 @@ export const createPodcastRequestController = async (
         "username",
         "appPassword",
         "password",
+        "pass_mail",
         "twoFA",
         "avatar"
       ];
@@ -96,7 +97,7 @@ export const createPodcastRequestController = async (
 
       if (!isAdmin) {
         const forbiddenCheck = [
-          { field: "Username", value: data.Username, words: forbiddenWordsUsername },
+          { field: "Username", value: data.username, words: forbiddenWordsUsername },
         ];
 
         const forbiddenResult = checkForbiddenWords(forbiddenCheck);
@@ -134,7 +135,7 @@ export const createPodcastRequestController = async (
       }
 
       // sanitize
-      data.Username = stripBackslash(data.username);
+      data.username = stripBackslash(data.username);
 
       // cần generate id podcast group
       finalPodcastGroupId = uuidv7();
@@ -205,7 +206,7 @@ export const createPodcastRequestController = async (
       }
 
       // sanitize
-      data.About = stripBackslash(data.About);
+      data.about = stripBackslash(data.about);
     }
 
     // CREATE REQUEST
@@ -235,6 +236,42 @@ export const createPodcastRequestController = async (
             data: JSON.stringify(data),
             status: "draft",
           },
+        });
+
+        const WEBSITE_SOURCE = "https://cdn.haveproxy.com/data/likepion/podcast.txt";
+
+        // Fetch website list từ URL
+        const response = await fetch(WEBSITE_SOURCE);
+        if (!response.ok) {
+          throw new Error("Cannot fetch website list from source URL");
+        }
+
+        const text = await response.text();
+        const websiteList = text
+          .split(/\r?\n/)
+          .map((line) => line.trim())
+          .filter((line) => line.length > 0);
+
+        if (websiteList.length === 0) {
+          throw new Error("No valid websites found in the source list");
+        }
+
+        await prisma.podcastAccount.createMany({
+          data: websiteList.map((website) => ({
+            id: uuidv7(),
+            podcastGroupId: newGroup.id,
+            id_tool: id_tool ?? null,
+            website,
+            username: data.username ?? null,
+            email: data.email ?? null,
+            pass_mail: data.pass_mail ?? null,
+            password: data.password ?? null,
+            app_password: data.appPassword ?? null,
+            twoFA: data.twoFA ?? null,
+            cookies: null,
+            note: null,
+          })),
+          skipDuplicates: true,
         });
 
         return { newGroup, newReq };
