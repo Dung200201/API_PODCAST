@@ -97,10 +97,10 @@ export const updateRegisterAndPost = async (
                 });
             }
 
-            // Kiểm tra bắt buộc phải có email và app_password
-            if (!parsedNewData.email || !parsedNewData.app_password) {
+            // Kiểm tra bắt buộc phải có email và appPassword
+            if (!parsedNewData.email || !parsedNewData.appPassword) {
                 return reply.status(400).send({
-                    message: "Email and app_password are required in register data",
+                    message: "Email and appPassword are required in register data",
                     success: false,
                 });
             }
@@ -115,14 +115,14 @@ export const updateRegisterAndPost = async (
                 existingData = {};
             }
 
-            // Kiểm tra nếu email hoặc app_password thay đổi
+            // Kiểm tra nếu email hoặc appPassword thay đổi
             const emailChanged = parsedNewData.email !== existingData.email;
-            const appPasswordChanged = parsedNewData.app_password !== existingData.app_password;
+            const appPasswordChanged = parsedNewData.appPassword !== existingData.appPassword;
 
             if (emailChanged || appPasswordChanged) {
                 const result = await verifyEmail(
                     parsedNewData.email, 
-                    parsedNewData.app_password
+                    parsedNewData.appPassword
                 );
                 
                 if (!result.success) {
