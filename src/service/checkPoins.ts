@@ -29,7 +29,8 @@ export const checkUserPoints = async (
         indexRequests,
         socialRequests,
         ggStackings,
-        blog20Requests
+        blog20Requests,
+        podcastRequests
     ] = await Promise.all([
         fastify.prisma.transaction.aggregate({
             where: { userId: user?.id, type: 'credit' },
@@ -118,7 +119,22 @@ export const checkUserPoints = async (
                 },
             },
         }),
+
+        // Query Podcast
+        fastify.prisma.podcastRequest.findMany({
+            where: {
+                userId: user?.id,
+                status: { notIn: ["completed", "cancel", "draft"] },
+                deletedAt: null,
+            },
+            select: {
+                id: true,
+                auction_price: true,
+                target: true,
+            },
+        }),
     ]);
+
 
     // Tính tổng điểm hiện có của 
     const totalPoints = (creditSum._sum.points || 0) - (debitSum._sum.points || 0);
@@ -174,9 +190,15 @@ export const checkUserPoints = async (
         return sum + price * count;
     }, 0);
 
+    // Tính điểm Podcast
+    const podcastUsed = podcastRequests.reduce((sum: number, req: any) => {
+        const price = Number(req.auction_price) || 0;
+        const target = Number(req.target) || 0;
+        return sum + price * target;
+    }, 0);
 
     // Tính điểm thiếu (nếu không đủ)
-    const totalUsed = entityUsed + indexLinksUsed + userTotalUsed + socialUsed + ggStackingUsed + blog20Used;
+    const totalUsed = entityUsed + indexLinksUsed + userTotalUsed + socialUsed + ggStackingUsed + blog20Used + podcastUsed;
 
     // 🛠️ Kiểm tra điểm có đủ hay không
     const neededPoints = Math.abs(totalPoints - totalUsed);
