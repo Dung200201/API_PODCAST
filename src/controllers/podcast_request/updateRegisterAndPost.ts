@@ -1,5 +1,8 @@
 import { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { handleErrorResponse } from "../../utils/handleError";
+import { getUserPreferences } from "../../service/getLanguageDb";
+import { translations } from "../../lib/i18n";
+import { verifyEmail } from "../../service/verifyEmail";
 import { IUser } from "../../types/user";
 import { z } from "zod";
 import _ from "lodash";
@@ -26,8 +29,15 @@ export const updateRegisterAndPost = async (
 ) => {
     try {
         const user = request.user as IUser;
-        const { role, type } = user;
+        const { role, type, id: userId } = user;
         const isAdmin = ["admin", "dev"].includes(role) || type === "priority";
+
+                // ✅ Lấy ngôn ngữ người dùng
+        const { language: dataLanguage } = await getUserPreferences(
+            fastify,
+            request,
+            userId
+        );
 
         // Parse JSON trước nếu body là string
         let bodyData: any = request.body;
@@ -54,9 +64,7 @@ export const updateRegisterAndPost = async (
 
         const { register, post } = validate.data;
 
-        // -------------------------
         // Lấy bản ghi register gốc
-        // -------------------------
         const existingRegister = await fastify.prisma.podcastRequest.findUnique({
             where: isAdmin
                 ? { id: register.id, deletedAt: null }
@@ -74,9 +82,59 @@ export const updateRegisterAndPost = async (
             });
         }
 
-        // -----------------------------
+          // ✅ KIỂM TRA EMAIL CHO REGISTER (nếu có data update)
+        if (register.data) {
+            let parsedNewData;
+            
+            try {
+                parsedNewData = typeof register.data === "string" 
+                    ? JSON.parse(register.data) 
+                    : register.data;
+            } catch (parseError) {
+                return reply.status(400).send({
+                    message: "Data format is invalid. Please provide valid JSON data.",
+                    success: false,
+                });
+            }
+
+            // Kiểm tra bắt buộc phải có email và app_password
+            if (!parsedNewData.email || !parsedNewData.app_password) {
+                return reply.status(400).send({
+                    message: "Email and app_password are required in register data",
+                    success: false,
+                });
+            }
+
+            // Parse data cũ để so sánh
+            let existingData;
+            try {
+                existingData = existingRegister.data 
+                    ? JSON.parse(existingRegister.data) 
+                    : {};
+            } catch {
+                existingData = {};
+            }
+
+            // Kiểm tra nếu email hoặc app_password thay đổi
+            const emailChanged = parsedNewData.email !== existingData.email;
+            const appPasswordChanged = parsedNewData.app_password !== existingData.app_password;
+
+            if (emailChanged || appPasswordChanged) {
+                const result = await verifyEmail(
+                    parsedNewData.email, 
+                    parsedNewData.app_password
+                );
+                
+                if (!result.success) {
+                    return reply.status(400).send({
+                        message: translations[dataLanguage].services.invalidAppPassword,
+                        success: false,
+                    });
+                }
+            }
+        }
+
         // Tìm bản ghi post cùng group
-        // -----------------------------
         const existingPost = await fastify.prisma.podcastRequest.findFirst({
             where: {
                 podcastGroupId: existingRegister.podcastGroupId,
@@ -85,9 +143,7 @@ export const updateRegisterAndPost = async (
             }
         });
 
-        // ------------------------------------------------------
         // FUNCTION phụ xử lý update (so sánh đổi + stringify data)
-        // ------------------------------------------------------
         const buildUpdateData = (oldData: any, newData: any) => {
             const updateObj: any = {};
 
@@ -117,9 +173,7 @@ export const updateRegisterAndPost = async (
             return updateObj;
         };
 
-        // -------------------------
         // 1) Update register
-        // -------------------------
         const registerUpdateData = buildUpdateData(existingRegister, register);
 
         let updatedRegister = existingRegister;
@@ -130,9 +184,7 @@ export const updateRegisterAndPost = async (
             });
         }
 
-        // -------------------------
         // 2) Update post nếu có gửi
-        // -------------------------
         let updatedPost = null;
 
         if (post && existingPost) {
